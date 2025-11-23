@@ -33,6 +33,7 @@ node ace configure @mixxtor/currencyx-adonisjs
 ```
 
 This will:
+
 - Create `config/currency.ts` configuration file
 - Create Currency model and migration stubs
 - Register the service provider
@@ -88,7 +89,7 @@ export default defineConfig({
     */
     google: exchanges.google({
       base: env.get('CURRENCY_BASE', 'USD'),
-      timeout: 5000
+      timeout: 5000,
     }),
 
     /*
@@ -102,7 +103,7 @@ export default defineConfig({
     //   base: env.get('CURRENCY_BASE', 'USD'),
     //   timeout: 10000
     // })
-  }
+  },
 })
 ```
 
@@ -302,9 +303,9 @@ database: exchanges.database({
   },
   cache: {
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
-    ttl: '1h',                                              // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency'                                   // Cache key prefix
-  }
+    ttl: '1h', // Cache TTL (human readable or milliseconds)
+    keyPrefix: 'currency', // Cache key prefix
+  },
 })
 ```
 
@@ -399,17 +400,18 @@ FIXER_API_KEY=your_api_key_here
 
 ```typescript
 database: exchanges.database({
-  model: () => import('#models/currency'),  // Your Currency model
-  base: 'USD',                              // Base currency
+  model: () => import('#models/currency'), // Your Currency model
+  base: 'USD', // Base currency
   columns: {
-    code: 'code',                           // Currency code column
-    rate: 'exchange_rate',                  // Exchange rate column
+    code: 'code', // Currency code column
+    rate: 'exchange_rate', // Exchange rate column
   },
-  cache: {                                  // Optional caching
+  cache: {
+    // Optional caching
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
-    ttl: '1h',                              // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency'                   // Cache key prefix
-  }
+    ttl: '1h', // Cache TTL (human readable or milliseconds)
+    keyPrefix: 'currency', // Cache key prefix
+  },
 })
 ```
 
@@ -417,8 +419,8 @@ database: exchanges.database({
 
 ```typescript
 google: exchanges.google({
-  base: 'USD',        // Base currency
-  timeout: 5000,      // Request timeout (optional)
+  base: 'USD', // Base currency
+  timeout: 5000, // Request timeout (optional)
 })
 ```
 
@@ -426,9 +428,9 @@ google: exchanges.google({
 
 ```typescript
 fixer: exchanges.fixer({
-  accessKey: 'your-api-key',  // Required
-  base: 'USD',                // Base currency (default: 'USD' for this library)
-  timeout: 10000,             // Request timeout (optional)
+  accessKey: 'your-api-key', // Required
+  base: 'USD', // Base currency (default: 'USD' for this library)
+  timeout: 10000, // Request timeout (optional)
 })
 ```
 
