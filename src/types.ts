@@ -117,12 +117,11 @@ export type ExchangeFactory = BaseCurrencyExchange
 /**
  * Main Currency Service Implementation
  */
-export interface CurrencyService
-  extends BaseCurrencyService<
-    CurrencyExchanges extends Record<string, ReturnType<typeof createCurrency>>
-      ? CurrencyExchanges
-      : never
-  > {}
+export interface CurrencyService extends BaseCurrencyService<
+  CurrencyExchanges extends Record<string, ReturnType<typeof createCurrency>>
+    ? CurrencyExchanges
+    : never
+> {}
 
 /**
  * Service config provider is an extension of the config
