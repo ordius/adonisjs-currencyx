@@ -54,7 +54,7 @@ export function defineConfig<Exchanges extends Record<string, any>>(
 ): ConfigProvider<ResolvedConfig<Exchanges>> {
   return configProvider.create(async (_app) => {
     const { exchanges: exchangesFactory, default: defaultExchange } = config
-    const exchangesNames = Object.keys(exchanges)
+    const exchangesNames = Object.keys(exchangesFactory)
 
     /**
      * Configured exchanges
