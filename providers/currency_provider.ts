@@ -8,7 +8,8 @@
  */
 
 import type { ApplicationService } from '@adonisjs/core/types'
-import CurrencyService, { createCurrency } from '@mixxtor/currencyx-js'
+import type CurrencyService from '@mixxtor/currencyx-js'
+import { createCurrency } from '@mixxtor/currencyx-js'
 import type { CurrencyConfig } from '../src/types.js'
 import { configProvider } from '@adonisjs/core'
 import { RuntimeException } from '@adonisjs/core/exceptions'

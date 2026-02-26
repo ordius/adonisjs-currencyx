@@ -1,8 +1,8 @@
-import { CacheOptions, CacheService } from '@adonisjs/cache/types'
-import { ApplicationService, ConfigProvider } from '@adonisjs/core/types'
-import { LucidModel } from '@adonisjs/lucid/types/model'
-import BaseCurrencyService, { BaseCurrencyExchange, createCurrency } from '@mixxtor/currencyx-js'
-import type { CurrencyExchanges } from '@mixxtor/currencyx-js'
+import type { CacheOptions, CacheService } from '@adonisjs/cache/types'
+import type { ApplicationService, ConfigProvider } from '@adonisjs/core/types'
+import type { LucidModel } from '@adonisjs/lucid/types/model'
+import type BaseCurrencyService from '@mixxtor/currencyx-js'
+import type { CurrencyExchanges, BaseCurrencyExchange, createCurrency } from '@mixxtor/currencyx-js'
 
 export type { CurrencyExchanges, CurrencyCode } from '@mixxtor/currencyx-js'
 
