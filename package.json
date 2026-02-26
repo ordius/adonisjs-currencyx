@@ -34,6 +34,7 @@
     "release:patch": "release-it patch",
     "release:minor": "release-it minor",
     "release:major": "release-it major",
+    "release:next": "release-it --preRelease=next --npm.tag=next",
     "release:beta": "release-it --preRelease=beta",
     "release:alpha": "release-it --preRelease=alpha",
     "release:dry": "release-it --dry-run",
