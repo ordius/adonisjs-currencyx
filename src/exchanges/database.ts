@@ -128,7 +128,7 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
 
     try {
       this.cache = await this.getCacheService()
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Cache setup failed, continuing without cache:', error.message)
     }
   }
