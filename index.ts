@@ -7,9 +7,9 @@
 |
 */
 
-export { configure } from './configure.js'
-export { stubsRoot } from './stubs/main.js'
-export { defineConfig, exchanges } from './src/define_config.js'
+export { configure } from './configure.ts'
+export { stubsRoot } from './stubs/main.ts'
+export { defineConfig, exchanges } from './src/define_config.ts'
 
 // Types
 export type {
@@ -20,7 +20,7 @@ export type {
   CurrencyRecord,
   CurrencyExchanges,
   InferExchanges,
-} from './src/types.js'
+} from './src/types.ts'
 
 // Database Provider
-export { DatabaseExchange } from './src/exchanges/database.js'
+export { DatabaseExchange } from './src/exchanges/database.ts'

@@ -10,7 +10,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import type CurrencyService from '@mixxtor/currencyx-js'
 import { createCurrency } from '@mixxtor/currencyx-js'
-import type { CurrencyConfig } from '../src/types.js'
+import type { CurrencyConfig } from '../src/types.ts'
 import { configProvider } from '@adonisjs/core'
 import { RuntimeException } from '@adonisjs/core/exceptions'
 

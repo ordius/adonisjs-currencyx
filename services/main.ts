@@ -9,7 +9,7 @@
 
 import app from '@adonisjs/core/services/app'
 import type CurrencyService from '@mixxtor/currencyx-js'
-import type { CurrencyExchanges } from '../src/types.js'
+import type { CurrencyExchanges } from '../src/types.ts'
 
 /**
  * Currency service with full type inference

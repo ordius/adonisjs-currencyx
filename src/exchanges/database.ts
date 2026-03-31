@@ -6,9 +6,9 @@ import type {
   ExchangeRatesParams,
 } from '@mixxtor/currencyx-js'
 import { BaseCurrencyExchange } from '@mixxtor/currencyx-js'
-import type { DatabaseConfig } from '../types.js'
+import type { DatabaseConfig } from '../types.ts'
 import type { CacheService } from '@adonisjs/cache/types'
-import { PROVIDER_CURRENCY_MODEL } from '../symbols.js'
+import { PROVIDER_CURRENCY_MODEL } from '../symbols.ts'
 import type { LucidModel } from '@adonisjs/lucid/types/model'
 
 export class DatabaseExchange<Model extends LucidModel = LucidModel> extends BaseCurrencyExchange {

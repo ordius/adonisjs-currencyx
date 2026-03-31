@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { defineConfig, exchanges } from '../src/define_config.js'
+import { defineConfig, exchanges } from '../src/define_config.ts'
 
 test.group('Configuration Helpers', () => {
   test('defineConfig should return a config provider', ({ assert }) => {
