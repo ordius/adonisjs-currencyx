@@ -2,7 +2,7 @@
   exports({ to: app.configPath('currency.ts') })
 }}}
 import env from '#start/env'
-import { defineConfig, exchanges } from '@mixxtor/currencyx-adonisjs'
+import { defineConfig, exchanges } from '@ordius/adonisjs-currencyx'
 
 const currencyConfig = defineConfig({
   /*
@@ -92,6 +92,6 @@ export default currencyConfig
 | This provides better IntelliSense and type safety.
 |
 */
-declare module '@mixxtor/currencyx-adonisjs/types' {
+declare module '@ordius/adonisjs-currencyx/types' {
   interface CurrencyExchanges extends InferExchanges<typeof currencyConfig> {}
 }

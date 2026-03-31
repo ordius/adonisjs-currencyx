@@ -21,7 +21,7 @@
 ## 📦 Installation
 
 ```bash
-npm install @mixxtor/currencyx-adonisjs
+npm install @ordius/adonisjs-currencyx
 ```
 
 ## 🚀 Setup
@@ -29,7 +29,7 @@ npm install @mixxtor/currencyx-adonisjs
 ### 1. Configure the package
 
 ```bash
-node ace configure @mixxtor/currencyx-adonisjs
+node ace configure @ordius/adonisjs-currencyx
 ```
 
 This will:
@@ -44,7 +44,7 @@ Edit `config/currency.ts`:
 
 ```typescript
 import env from '#start/env'
-import { defineConfig, exchanges } from '@mixxtor/currencyx-adonisjs'
+import { defineConfig, exchanges } from '@ordius/adonisjs-currencyx'
 
 export default defineConfig({
   /*
@@ -183,7 +183,7 @@ node ace migration:run
 // app/controllers/exchange_controller.ts
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
-import CurrencyService from '@mixxtor/currencyx-adonisjs/services/main'
+import CurrencyService from '@ordius/adonisjs-currencyx/services/main'
 
 @inject()
 export default class ExchangeController {

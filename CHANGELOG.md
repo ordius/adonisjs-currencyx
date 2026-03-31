@@ -57,12 +57,12 @@ All notable changes to this project will be documented in this file.
 - Fixed provider import path in configure script
 - Added proper package.json exports for provider module
 - Fixed "Missing 'to' attribute in stub exports" error during `node ace configure`
-- Fixed "Cannot find module '@mixxtor/currencyx-adonisjs/currency_provider'" error
+- Fixed "Cannot find module '@ordius/adonisjs-currencyx/currency_provider'" error
 
 ### Changed
 
 - Updated stub templates to use `app.configPath()`, `app.modelPath()`, and `app.migrationPath()`
-- Updated provider registration path to `@mixxtor/currencyx-adonisjs/providers/currency_provider`
+- Updated provider registration path to `@ordius/adonisjs-currencyx/providers/currency_provider`
 
 ## [1.0.0] - 2025-07-19
 

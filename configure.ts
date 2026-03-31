@@ -12,7 +12,7 @@
 |
 */
 
-import ConfigureCommand from '@adonisjs/core/commands/configure'
+import type ConfigureCommand from '@adonisjs/core/commands/configure'
 import { stubsRoot } from './stubs/main.js'
 
 export async function configure(command: ConfigureCommand) {
@@ -27,7 +27,7 @@ export async function configure(command: ConfigureCommand) {
    * Register provider
    */
   await codemods.updateRcFile((rcFile) => {
-    rcFile.addProvider('@mixxtor/currencyx-adonisjs/currency_provider')
+    rcFile.addProvider('@ordius/adonisjs-currencyx/currency_provider')
   })
 
   /**

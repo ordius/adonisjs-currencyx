@@ -1,5 +1,5 @@
 /*
- * @mixxtor/currencyx-adonisjs
+ * @ordius/adonisjs-currencyx
  *
  * (c) Mixxtor
  *
@@ -8,7 +8,7 @@
  */
 
 import app from '@adonisjs/core/services/app'
-import CurrencyService from '@mixxtor/currencyx-js'
+import type CurrencyService from '@mixxtor/currencyx-js'
 import type { CurrencyExchanges } from '../src/types.js'
 
 /**
@@ -16,7 +16,7 @@ import type { CurrencyExchanges } from '../src/types.js'
  *
  * Usage:
  * ```ts
- * import currency from '@mixxtor/currencyx-adonisjs/services/currency'
+ * import currency from '@ordius/adonisjs-currencyx/services/currency'
  *
  * // Direct usage - no type casting needed
  * const rates = await currency.latestRates()
