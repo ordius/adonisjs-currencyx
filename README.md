@@ -1,6 +1,6 @@
-# CurrencyX AdonisJS
+# AdonisJS CurrencyX
 
-> AdonisJS integration for CurrencyX.js with database provider and cache support. Seamlessly integrate currency conversion into your AdonisJS applications.
+> AdonisJS integration for CurrencyX with database provider and cache support. Seamlessly integrate currency conversion into your AdonisJS applications.
 
 [![npm version](https://badge.fury.io/js/@mixxtor%2Fcurrencyx-adonisjs.svg)](https://badge.fury.io/js/@mixxtor%2Fcurrencyx-adonisjs)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
@@ -311,7 +311,7 @@ database: exchanges.database({
 
 ## 📚 API Reference
 
-The AdonisJS integration provides the same API as the core CurrencyX.js package:
+The AdonisJS integration provides the same API as the core CurrencyX package:
 
 ### Core Methods
 
