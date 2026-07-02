@@ -1,7 +1,7 @@
 {
   "name": "@ordius/adonisjs-currencyx",
   "description": "AdonisJS integration for CurrencyX with database exchange provider and cache support",
-  "version": "1.4.9",
+  "version": "2.0.0",
   "engines": {
     "node": ">=20.6.0"
   },
