@@ -9,7 +9,7 @@
 
 ## ✨ Features
 
-- 🚀 **AdonisJS Integration** - Seamless integration with AdonisJS v6 framework
+- 🚀 **AdonisJS Integration** - Seamless integration with AdonisJS v7 framework
 - 💾 **Database Exchange** - Store exchange rates in your database using Lucid ORM
 - 🔄 **Multiple Exchanges** - Google Finance, Fixer.io, and database exchanges
 - 📦 **Cache Support** - Built-in caching with AdonisJS Cache
