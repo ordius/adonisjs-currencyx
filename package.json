@@ -65,7 +65,7 @@
     "@release-it/conventional-changelog": "^11.0.1",
     "@swc/core": "^1.15.43",
     "@types/node": "^26.1.0",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.1",
     "c8": "^11.0.0",
     "copyfiles": "^2.4.1",
     "cross-env": "^10.1.0",
