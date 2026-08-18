@@ -78,7 +78,7 @@
     "release-it": "^21.0.2",
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "@adonisjs/cache": "^1.3.1 || ^2.1.0",
