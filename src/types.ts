@@ -109,8 +109,8 @@ export interface CurrencyRecord {
 }
 
 /**
- * Representation of a factory function that returns
- * an instance of a driver.
+ * Any exchange instance the config may hold — the bundled ones, or a class a fork/package brings
+ * of its own. The name is historical: it has always been the *instance* type, never a factory.
  */
 export type ExchangeFactory = BaseCurrencyExchange
 
@@ -124,10 +124,32 @@ export interface CurrencyService extends BaseCurrencyService<
 > {}
 
 /**
- * Service config provider is an extension of the config
- * provider and accepts the name of the disk service
+ * Lazy exchange: a resolver run at config-resolution time with the exchange's own name and the
+ * application, so an exchange can be built from the container (logger, cache, an HTTP client, or
+ * anything else registered) instead of at module-import time.
+ *
+ * Build one with `defineExchange()` — that is the seam third-party exchanges plug into, and the
+ * reason a private or app-specific exchange never needs to live in this package.
  */
 export type ServiceConfigProvider<Factory extends ExchangeFactory> = {
   type: 'provider'
   resolver: (name: string, app: ApplicationService) => Promise<Factory>
 }
+
+/**
+ * What an entry under `exchanges` may be: an instance, a thunk returning one (the manager calls
+ * it), or a lazy `ServiceConfigProvider`.
+ */
+export type ExchangeEntry<Factory extends ExchangeFactory = ExchangeFactory> =
+  Factory | (() => Factory) | ServiceConfigProvider<Factory>
+
+/**
+ * The instance an `ExchangeEntry` ends up as, which is what `currency.use('name')` hands back and
+ * what `InferExchanges` reports.
+ */
+export type ResolvedExchange<Entry> =
+  Entry extends ServiceConfigProvider<infer Factory>
+    ? Factory
+    : Entry extends () => infer Instance
+      ? Instance
+      : Entry

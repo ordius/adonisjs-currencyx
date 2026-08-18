@@ -346,12 +346,22 @@ const rates = await currency.getExchangeRates({ base: 'USD', codes: ['EUR', 'GBP
 // Switch exchanges
 currency.use('google')
 
+// Read one without switching the active exchange
+const google = currency.get('google')
+
 // Get current exchange
 const current = currency.getCurrentExchange()
 
 // List available exchanges
 const exchanges = currency.getAvailableExchanges()
+
+// Narrow user input (a CLI flag, a query param) to a configured exchange
+if (currency.has(name)) {
+  currency.use(name)
+}
 ```
+
+> `get()` / `has()` need `@mixxtor/currencyx-js` >= 2.4.0.
 
 ### Utility Methods
 
@@ -433,6 +443,82 @@ fixer: exchanges.fixer({
   timeout: 10000, // Request timeout (optional)
 })
 ```
+
+#### Your own exchange (`defineExchange`)
+
+An exchange this package does not ship — a private rate service, a provider behind your own API
+key, anything a public package could not carry — plugs in through `defineExchange()`. There is no
+registry to call and nothing to publish: the config **is** the registration.
+
+```typescript
+// app/services/mx_exchange.ts
+import { BaseCurrencyExchange } from '@ordius/adonisjs-currencyx'
+import type { ExchangeRatesParams, ExchangeRatesResult, ConvertParams, ConversionResult, CurrencyCode } from '@ordius/adonisjs-currencyx'
+
+export class MxExchange extends BaseCurrencyExchange {
+  readonly name = 'mx'
+
+  constructor(private config: { accessKey: string; base?: CurrencyCode }) {
+    super()
+    this.base = config.base ?? 'EUR'
+  }
+
+  async latestRates(params?: ExchangeRatesParams): Promise<ExchangeRatesResult> {
+    const base = this.resolveBase(params) // per call — never assign to this.base in a request
+    const rates = await this.#fetch(base)
+
+    return this.createExchangeRatesResult(base, rates)
+  }
+
+  async convert(params: ConvertParams): Promise<ConversionResult> {
+    /* ... */
+  }
+
+  async getConvertRate(from: CurrencyCode, to: CurrencyCode): Promise<number | undefined> {
+    /* ... */
+  }
+}
+```
+
+```typescript
+// config/currency.ts
+import env from '#start/env'
+import { defineConfig, defineExchange, exchanges } from '@ordius/adonisjs-currencyx'
+import { MxExchange } from '#services/mx_exchange'
+
+const currencyConfig = defineConfig({
+  default: env.get('CURRENCY_EXCHANGE_PROVIDER', 'database'),
+  exchanges: {
+    database: exchanges.database({ model: () => import('#models/currency') }),
+    mx: defineExchange(() => new MxExchange({ accessKey: env.get('MX_CURRENCY_API_KEY') })),
+  },
+})
+
+export default currencyConfig
+
+declare module '@ordius/adonisjs-currencyx/types' {
+  interface CurrencyExchanges extends InferExchanges<typeof currencyConfig> {}
+}
+```
+
+`currency.use('mx')` is now typed, and `InferExchanges` reports `MxExchange` — the same treatment
+the bundled exchanges get.
+
+The resolver receives `(name, app)` and may be async, so an exchange can be built from the
+container instead of at module-import time:
+
+```typescript
+mx: defineExchange(async (name, app) => {
+  const logger = await app.container.make('logger')
+  return new MxExchange({ accessKey: env.get('MX_CURRENCY_API_KEY'), logger: logger.child({ exchange: name }) })
+}),
+```
+
+A plain instance (`mx: new MxExchange({ ... })`) still works and stays the shortest form for an
+exchange that needs nothing from the app. `defineExchange()` buys laziness and container access.
+
+Publishing the exchange as its own package? It only needs `@ordius/adonisjs-currencyx` as a peer
+dependency — `BaseCurrencyExchange` and the result types are re-exported from here.
 
 ## 🛡️ Error Handling
 

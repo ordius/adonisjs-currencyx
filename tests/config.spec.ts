@@ -6,9 +6,10 @@ test.group('Configuration Helpers', () => {
     const result = defineConfig({
       default: 'database' as const,
       exchanges: {
-        database: {
-          model: () => Promise.resolve({} as any),
-        },
+        // The raw `DatabaseConfig` object this used to pass never worked at runtime — it went into
+        // the manager as-is and had no `latestRates` — it only type-checked because the config was
+        // typed `Record<string, any>`.
+        database: exchanges.database({ model: () => Promise.resolve({} as any) }),
       },
     })
 
