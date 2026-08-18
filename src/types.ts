@@ -2,7 +2,11 @@ import { type CacheOptions, type CacheService } from '@adonisjs/cache/types'
 import { type ApplicationService, type ConfigProvider } from '@adonisjs/core/types'
 import { type LucidModel } from '@adonisjs/lucid/types/model'
 import type BaseCurrencyService from '@mixxtor/currencyx-js'
-import type { CurrencyExchanges, BaseCurrencyExchange, createCurrency } from '@mixxtor/currencyx-js'
+import type {
+  CurrencyExchanges,
+  CurrencyExchangeInstance,
+  createCurrency,
+} from '@mixxtor/currencyx-js'
 
 export type { CurrencyExchanges, CurrencyCode } from '@mixxtor/currencyx-js'
 
@@ -84,7 +88,7 @@ export interface CurrencyConfig<KnownExchanges extends CurrencyExchanges = Curre
   /**
    * Provider configurations
    */
-  exchanges: Record<keyof KnownExchanges, BaseCurrencyExchange>
+  exchanges: Record<keyof KnownExchanges, CurrencyExchangeInstance>
 }
 
 /**
@@ -109,10 +113,16 @@ export interface CurrencyRecord {
 }
 
 /**
- * Any exchange instance the config may hold — the bundled ones, or a class a fork/package brings
- * of its own. The name is historical: it has always been the *instance* type, never a factory.
+ * Any exchange instance the config may hold — the bundled ones, a class a fork/package brings of
+ * its own, or one built with `createExchange()`. The name is historical: it has always been the
+ * *instance* type, never a factory.
+ *
+ * It is `CurrencyExchangeInstance` (the public surface) rather than the `BaseCurrencyExchange`
+ * class type on purpose: a spec-built class reports the mapped surface — that is what makes it
+ * concrete — so constraining to the class would have rejected exactly the exchanges
+ * `createExchange()` exists to produce.
  */
-export type ExchangeFactory = BaseCurrencyExchange
+export type ExchangeFactory = CurrencyExchangeInstance
 
 /**
  * Main Currency Service Implementation

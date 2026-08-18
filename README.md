@@ -444,47 +444,65 @@ fixer: exchanges.fixer({
 })
 ```
 
-#### Your own exchange (`defineExchange`)
+#### Your own exchange
 
 An exchange this package does not ship — a private rate service, a provider behind your own API
-key, anything a public package could not carry — plugs in through `defineExchange()`. There is no
-registry to call and nothing to publish: the config **is** the registration.
+key, anything a public package could not carry — takes two steps, and neither involves a registry:
+**write it** with `createExchange()`, **register it** with `defineExchange()`.
 
 ```typescript
-// app/services/mx_exchange.ts
-import { BaseCurrencyExchange } from '@ordius/adonisjs-currencyx'
-import type { ExchangeRatesParams, ExchangeRatesResult, ConvertParams, ConversionResult, CurrencyCode } from '@ordius/adonisjs-currencyx'
+// app/services/currency_exchanges/mx_exchange_service.ts
+import { createExchange, CurrencyError, ConfigurationError } from '@ordius/adonisjs-currencyx'
+import type { CurrencyCode } from '@ordius/adonisjs-currencyx'
 
-export class MxExchange extends BaseCurrencyExchange {
-  readonly name = 'mx'
+export type MxConfig = { accessKey: string; base?: CurrencyCode; timeout?: number }
 
-  constructor(private config: { accessKey: string; base?: CurrencyCode }) {
-    super()
-    this.base = config.base ?? 'EUR'
-  }
+export class MxExchange extends createExchange<MxConfig>({
+  name: 'mx',
+  defaults: { base: 'EUR', timeout: 5000 },
 
-  async latestRates(params?: ExchangeRatesParams): Promise<ExchangeRatesResult> {
-    const base = this.resolveBase(params) // per call — never assign to this.base in a request
-    const rates = await this.#fetch(base)
+  // What the upstream really does, so the generated class compensates:
+  //   base          → the ONLY base it publishes; any other base is derived locally
+  //   supportsCodes → false means it ignores `symbols`, so filtering happens here
+  upstream: { base: 'EUR', supportsCodes: false },
 
-    return this.createExchangeRatesResult(base, rates)
-  }
+  validate: (config) => {
+    if (!config.accessKey) throw new ConfigurationError('Mx exchange requires an accessKey')
+  },
+  setKey: (config, key) => (config.accessKey = key),
 
-  async convert(params: ConvertParams): Promise<ConversionResult> {
-    /* ... */
-  }
+  async fetchRates({ config, signal }) {
+    const url = new URL('https://currencyrates.example.dev')
+    url.searchParams.set('access_key', config.accessKey)
 
-  async getConvertRate(from: CurrencyCode, to: CurrencyCode): Promise<number | undefined> {
-    /* ... */
-  }
-}
+    const response = await fetch(url, { signal }) // `signal` already honours config.timeout
+    const data = await response.json()
+
+    if (!response.ok || !data.success) {
+      throw new CurrencyError(
+        data.error ?? `HTTP ${response.status}`,
+        response.status,
+        'INVALID_ACCESS_KEY'
+      )
+    }
+
+    return data.rates
+  },
+}) {}
 ```
+
+That is the whole exchange: `latestRates`, `convert`, `getConvertRate`, rebasing, filtering and
+error results come from `createExchange`. Pair-based APIs (one quote per request) declare
+`fetchRate` instead — see the [`@mixxtor/currencyx-js` docs](https://github.com/ordius/currencyx-js)
+for the full spec, and subclass `BaseCurrencyExchange` directly when an API cannot be described
+this way. Both are re-exported here, so an exchange packaged separately needs only this package as
+a peer dependency.
 
 ```typescript
 // config/currency.ts
 import env from '#start/env'
 import { defineConfig, defineExchange, exchanges } from '@ordius/adonisjs-currencyx'
-import { MxExchange } from '#services/mx_exchange'
+import { MxExchange } from '#services/currency_exchanges/mx_exchange_service'
 
 const currencyConfig = defineConfig({
   default: env.get('CURRENCY_EXCHANGE_PROVIDER', 'database'),
@@ -501,8 +519,8 @@ declare module '@ordius/adonisjs-currencyx/types' {
 }
 ```
 
-`currency.use('mx')` is now typed, and `InferExchanges` reports `MxExchange` — the same treatment
-the bundled exchanges get.
+`currency.use('mx')` is now typed and `InferExchanges` reports `MxExchange` — the same treatment
+the bundled exchanges get. The config **is** the registration.
 
 The resolver receives `(name, app)` and may be async, so an exchange can be built from the
 container instead of at module-import time:
@@ -516,9 +534,6 @@ mx: defineExchange(async (name, app) => {
 
 A plain instance (`mx: new MxExchange({ ... })`) still works and stays the shortest form for an
 exchange that needs nothing from the app. `defineExchange()` buys laziness and container access.
-
-Publishing the exchange as its own package? It only needs `@ordius/adonisjs-currencyx` as a peer
-dependency — `BaseCurrencyExchange` and the result types are re-exported from here.
 
 ## 🛡️ Error Handling
 

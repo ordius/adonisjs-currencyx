@@ -1,7 +1,13 @@
 import { test } from '@japa/runner'
 import { configProvider } from '@adonisjs/core'
 import type { ApplicationService } from '@adonisjs/core/types'
-import { BaseCurrencyExchange, defineConfig, defineExchange, exchanges } from '../index.js'
+import {
+  BaseCurrencyExchange,
+  createExchange,
+  defineConfig,
+  defineExchange,
+  exchanges,
+} from '../index.js'
 import type {
   ConversionResult,
   ConvertParams,
@@ -131,5 +137,37 @@ test.group('defineExchange', () => {
     // Compile-time assertion: the provider must infer to the instance, not to the provider object.
     const check: Exchanges['custom'] extends CustomExchange ? true : false = true
     assert.isTrue(check)
+  })
+})
+
+test.group('createExchange re-export', () => {
+  test('a spec-built exchange registers and resolves like any other', async ({ assert }) => {
+    class SpecExchange extends createExchange<{ base?: 'EUR'; timeout?: number }>({
+      name: 'spec',
+      defaults: { base: 'EUR' },
+      upstream: { base: 'EUR', supportsCodes: false },
+      async fetchRates() {
+        return { EUR: 1, USD: 1.1 }
+      },
+    }) {}
+
+    const config = defineConfig({
+      default: 'spec' as const,
+      exchanges: { spec: defineExchange(() => new SpecExchange()) },
+    })
+
+    const app = await setupApp('web', { currency: config as any })
+    const currency = await app.container.make('currency.manager')
+
+    // `BaseCurrencyExchange` is abstract, so assert against the concrete class the spec produced.
+    assert.instanceOf(currency.use('spec'), SpecExchange)
+    assert.equal(currency.use('spec').name, 'spec')
+    assert.equal(currency.getCurrentExchange(), 'spec')
+
+    // the generated class does the rebasing the spec declared it needs
+    const rates = await currency.latestRates({ base: 'USD' })
+    assert.equal(rates.base, 'USD')
+    assert.equal(rates.rates.USD, 1)
+    assert.closeTo(rates.rates.EUR, 1 / 1.1, 1e-10)
   })
 })
