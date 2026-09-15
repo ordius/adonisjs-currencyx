@@ -9,7 +9,7 @@
 
 ## ✨ Features
 
-- 🚀 **AdonisJS Integration** - Seamless integration with AdonisJS v6 framework
+- 🚀 **AdonisJS Integration** - Seamless integration with AdonisJS v7 framework
 - 💾 **Database Exchange** - Store exchange rates in your database using Lucid ORM
 - 🔄 **Multiple Exchanges** - Google Finance, Fixer.io, and database exchanges
 - 📦 **Cache Support** - Built-in caching with AdonisJS Cache
@@ -77,7 +77,7 @@ export default defineConfig({
       // cache: {
       //   service: () => import('@adonisjs/cache/services/main'),
       //   ttl: '1h',          // Cache TTL (human readable or milliseconds)
-      //   keyPrefix: 'currency' // Cache key prefix
+      //   prefix: 'currency' // Cache namespace for this exchange's entries
       // }
     }),
 
@@ -157,7 +157,8 @@ export default class extends BaseSchema {
       table.increments('id')
       table.string('code', 3).notNullable().unique()
       table.string('name').notNullable()
-      table.decimal('exchange_rate', 15, 8).notNullable()
+      // Scale 15: crypto rates (1 USD ≈ 0.0000130 BTC) need it — a narrow scale rounds them away
+      table.decimal('exchange_rate', 30, 15).notNullable()
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })
@@ -304,10 +305,34 @@ database: exchanges.database({
   cache: {
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
     ttl: '1h', // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency', // Cache key prefix
+    prefix: 'currency', // Cache namespace for this exchange's entries
   },
 })
 ```
+
+Everything the exchange caches — the rate list and one entry per currency pair `convert()` /
+`getConvertRate()` looked up — lives under the `prefix` namespace. **Clear it whenever you write
+rates**, or readers keep serving the previous ones for the full `ttl`:
+
+```typescript
+// e.g. at the end of a command/job that syncs rates into the table
+await currency.use('database').clearCache()
+```
+
+`clearCache()` works from any process, including one that has not read rates yet.
+
+### Base currency
+
+Rows are quoted against the exchange's `base` (1 `base` buys `exchange_rate` units of the row's
+currency), so write them in that base — rebase before storing if your provider answers in another
+one. Asking for a different base derives it from the stored rates:
+
+```typescript
+await currency.use('database').latestRates({ base: 'EUR' }) // every rate re-quoted per 1 EUR
+```
+
+A base with no row in the table returns `success: false` with `UNSUPPORTED_CURRENCY`. `decimal`
+columns that the driver returns as strings are read as numbers.
 
 ## 📚 API Reference
 
@@ -346,12 +371,22 @@ const rates = await currency.getExchangeRates({ base: 'USD', codes: ['EUR', 'GBP
 // Switch exchanges
 currency.use('google')
 
+// Read one without switching the active exchange
+const google = currency.get('google')
+
 // Get current exchange
 const current = currency.getCurrentExchange()
 
 // List available exchanges
 const exchanges = currency.getAvailableExchanges()
+
+// Narrow user input (a CLI flag, a query param) to a configured exchange
+if (currency.has(name)) {
+  currency.use(name)
+}
 ```
+
+> `get()` / `has()` need `@mixxtor/currencyx-js` >= 2.4.0.
 
 ### Utility Methods
 
@@ -410,7 +445,7 @@ database: exchanges.database({
     // Optional caching
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
     ttl: '1h', // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency', // Cache key prefix
+    prefix: 'currency', // Cache namespace for this exchange's entries
   },
 })
 ```
@@ -433,6 +468,97 @@ fixer: exchanges.fixer({
   timeout: 10000, // Request timeout (optional)
 })
 ```
+
+#### Your own exchange
+
+An exchange this package does not ship — a private rate service, a provider behind your own API
+key, anything a public package could not carry — takes two steps, and neither involves a registry:
+**write it** with `createExchange()`, **register it** with `defineExchange()`.
+
+```typescript
+// app/services/currency_exchanges/mx_exchange_service.ts
+import { createExchange, CurrencyError, ConfigurationError } from '@ordius/adonisjs-currencyx'
+import type { CurrencyCode } from '@ordius/adonisjs-currencyx'
+
+export type MxConfig = { accessKey: string; base?: CurrencyCode; timeout?: number }
+
+export class MxExchange extends createExchange<MxConfig>({
+  name: 'mx',
+  defaults: { base: 'EUR', timeout: 5000 },
+
+  // What the upstream really does, so the generated class compensates:
+  //   base          → the ONLY base it publishes; any other base is derived locally
+  //   supportsCodes → false means it ignores `symbols`, so filtering happens here
+  upstream: { base: 'EUR', supportsCodes: false },
+
+  validate: (config) => {
+    if (!config.accessKey) throw new ConfigurationError('Mx exchange requires an accessKey')
+  },
+  setKey: (config, key) => (config.accessKey = key),
+
+  async fetchRates({ config, signal }) {
+    const url = new URL('https://currencyrates.example.dev')
+    url.searchParams.set('access_key', config.accessKey)
+
+    const response = await fetch(url, { signal }) // `signal` already honours config.timeout
+    const data = await response.json()
+
+    if (!response.ok || !data.success) {
+      throw new CurrencyError(
+        data.error ?? `HTTP ${response.status}`,
+        response.status,
+        'INVALID_ACCESS_KEY'
+      )
+    }
+
+    return data.rates
+  },
+}) {}
+```
+
+That is the whole exchange: `latestRates`, `convert`, `getConvertRate`, rebasing, filtering and
+error results come from `createExchange`. Pair-based APIs (one quote per request) declare
+`fetchRate` instead — see the [`@mixxtor/currencyx-js` docs](https://github.com/ordius/currencyx-js)
+for the full spec, and subclass `BaseCurrencyExchange` directly when an API cannot be described
+this way. Both are re-exported here, so an exchange packaged separately needs only this package as
+a peer dependency.
+
+```typescript
+// config/currency.ts
+import env from '#start/env'
+import { defineConfig, defineExchange, exchanges } from '@ordius/adonisjs-currencyx'
+import { MxExchange } from '#services/currency_exchanges/mx_exchange_service'
+
+const currencyConfig = defineConfig({
+  default: env.get('CURRENCY_EXCHANGE_PROVIDER', 'database'),
+  exchanges: {
+    database: exchanges.database({ model: () => import('#models/currency') }),
+    mx: defineExchange(() => new MxExchange({ accessKey: env.get('MX_CURRENCY_API_KEY') })),
+  },
+})
+
+export default currencyConfig
+
+declare module '@ordius/adonisjs-currencyx/types' {
+  interface CurrencyExchanges extends InferExchanges<typeof currencyConfig> {}
+}
+```
+
+`currency.use('mx')` is now typed and `InferExchanges` reports `MxExchange` — the same treatment
+the bundled exchanges get. The config **is** the registration.
+
+The resolver receives `(name, app)` and may be async, so an exchange can be built from the
+container instead of at module-import time:
+
+```typescript
+mx: defineExchange(async (name, app) => {
+  const logger = await app.container.make('logger')
+  return new MxExchange({ accessKey: env.get('MX_CURRENCY_API_KEY'), logger: logger.child({ exchange: name }) })
+}),
+```
+
+A plain instance (`mx: new MxExchange({ ... })`) still works and stays the shortest form for an
+exchange that needs nothing from the app. `defineExchange()` buys laziness and container access.
 
 ## 🛡️ Error Handling
 

@@ -7,9 +7,12 @@ import type {
 } from '@mixxtor/currencyx-js'
 import { BaseCurrencyExchange } from '@mixxtor/currencyx-js'
 import type { DatabaseConfig } from '../types.js'
-import type { CacheService } from '@adonisjs/cache/types'
+import type { CacheProvider } from '@adonisjs/cache/types'
 import { PROVIDER_CURRENCY_MODEL } from '../symbols.js'
 import type { LucidModel } from '@adonisjs/lucid/types/model'
+
+/** Key of the full rate list inside the exchange's cache namespace. */
+const LIST_CACHE_KEY = 'list'
 
 export class DatabaseExchange<Model extends LucidModel = LucidModel> extends BaseCurrencyExchange {
   declare [PROVIDER_CURRENCY_MODEL]: InstanceType<Model>
@@ -19,7 +22,7 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
   protected model?: Model
   private columns: NonNullable<DatabaseConfig<Model>['columns']>
   private configModel?: DatabaseConfig<Model>['model']
-  private cache?: CacheService
+  private cache?: CacheProvider
   private cacheSetupPromise?: Promise<void>
   private config: DatabaseConfig<Model>
 
@@ -128,7 +131,7 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
 
     try {
       this.cache = await this.getCacheService()
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Cache setup failed, continuing without cache:', error.message)
     }
   }
@@ -242,9 +245,13 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
       return await query
     }
 
-    const { prefix = this.#defaultCacheKeyPrefix, ttl = this.#defaultCacheTTL } = this.config.cache
+    const { ttl = this.#defaultCacheTTL } = this.config.cache
 
-    return await this.cache.getOrSet({ key: prefix, factory: () => query, ttl })
+    return await this.#cacheNamespace()!.getOrSet({
+      key: LIST_CACHE_KEY,
+      factory: () => query,
+      ttl,
+    })
   }
 
   /**
@@ -267,10 +274,25 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
       return await query
     }
 
-    const { prefix = this.#defaultCacheKeyPrefix, ttl = this.#defaultCacheTTL } = this.config.cache
-    const cacheKey = `${prefix}_${codes.sort().join('_')}`
+    const { ttl = this.#defaultCacheTTL } = this.config.cache
+    // Copy before sorting: `codes.sort()` reordered the caller's own array.
+    const cacheKey = `pair_${[...codes].sort().join('_')}`
 
-    return await this.cache.getOrSet({ key: cacheKey, factory: () => query, ttl })
+    return await this.#cacheNamespace()!.getOrSet({ key: cacheKey, factory: () => query, ttl })
+  }
+
+  /**
+   * Every entry this exchange caches lives in one namespace named after `cache.prefix`: the rate
+   * list and one entry per code set `convert()`/`getConvertRate()` looked up. Flat keys could not be
+   * invalidated as a whole — the pair keys are unknowable — so `clearCache()` used to leave them
+   * serving old rates for the full TTL.
+   */
+  #cacheNamespace(): CacheProvider | undefined {
+    if (!this.cache || !this.config.cache) {
+      return undefined
+    }
+
+    return this.cache.namespace(this.config.cache.prefix || this.#defaultCacheKeyPrefix)
   }
 
   /**
@@ -283,8 +305,17 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
   /**
    * Helper method to get currency rate from a record
    */
-  #getCurrencyRate(record: any): number {
-    return record[this.columns.rate] as number
+  #getCurrencyRate(record: any): number | undefined {
+    const value = record[this.columns.rate]
+
+    // `decimal`/`numeric` columns come back from PostgreSQL (and MySQL) as strings unless the model
+    // consumes them, and so does anything read back from a JSON cache. Rates must be numbers.
+    if (typeof value === 'string') {
+      const rate = Number(value)
+      return Number.isFinite(rate) ? rate : undefined
+    }
+
+    return value ?? undefined
   }
 
   /**
@@ -322,6 +353,24 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
         return result
       }
 
+      // Stored rates are quoted against the configured base. A different `base` is derived by
+      // dividing through the stored rate of that currency — before this, the requested base was
+      // only written into `result.base` and the stored numbers were returned under that label.
+      let divisor = 1
+      if (base !== this.base) {
+        const pivot = currencies.find((record) => this.#getCurrencyCode(record) === base)
+        const pivotRate = pivot ? this.#getCurrencyRate(pivot) : undefined
+        if (!pivotRate || pivotRate <= 0) {
+          result.error = {
+            info: `Unsupported base currency: ${base}`,
+            type: 'UNSUPPORTED_CURRENCY',
+          }
+          return result
+        }
+
+        divisor = pivotRate
+      }
+
       let latestDate: Date | undefined
 
       for (const record of currencies) {
@@ -335,7 +384,7 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
 
         // Filter by currency codes if specified
         if (!currencyCodes || currencyCodes.length === 0 || currencyCodes.includes(code)) {
-          result.rates[code] = rate
+          result.rates[code] = rate / divisor
 
           // Track the latest update date
           if (updatedAt) {
@@ -345,6 +394,16 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
             }
           }
         }
+      }
+
+      // The configured base is 1 by definition and often has no row of its own; a derived table
+      // must still price it.
+      if (
+        base !== this.base &&
+        result.rates[this.base] === undefined &&
+        (!currencyCodes || currencyCodes.length === 0 || currencyCodes.includes(this.base))
+      ) {
+        result.rates[this.base] = 1 / divisor
       }
 
       // Update result with latest date if found
@@ -378,12 +437,11 @@ export class DatabaseExchange<Model extends LucidModel = LucidModel> extends Bas
    * Clear the currency cache
    */
   async clearCache(): Promise<void> {
-    if (!this.cache || !this.config.cache) {
-      return
-    }
+    // The cache service is attached lazily, on the first read. Without this, clearing from a
+    // process that had not read rates yet — a sync command, a job — silently did nothing.
+    await this.#ensureCacheSetup()
 
-    const { prefix = this.#defaultCacheKeyPrefix } = this.config.cache
-    await this.cache.delete({ key: prefix })
+    await this.#cacheNamespace()?.clear()
   }
 
   /**
