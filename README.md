@@ -157,7 +157,8 @@ export default class extends BaseSchema {
       table.increments('id')
       table.string('code', 3).notNullable().unique()
       table.string('name').notNullable()
-      table.decimal('exchange_rate', 15, 8).notNullable()
+      // Scale 15: crypto rates (1 USD ≈ 0.0000130 BTC) need it — a narrow scale rounds them away
+      table.decimal('exchange_rate', 30, 15).notNullable()
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

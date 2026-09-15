@@ -18,10 +18,13 @@ export default class extends BaseSchema {
       table.jsonb('countries').nullable().comment('The countries that support this currency')
 
       /**
-       * Exchange rate relative to base currency (e.g., USD)
-       * For USD itself, rate should be 1.0
+       * Units of this currency per 1 base currency (the exchange's `base`, e.g. USD) — the base itself is 1.
+       *
+       * Scale 15, not a money-style 2–8: crypto rates are tiny (1 USD ≈ 0.0000130 BTC), and a narrow scale
+       * rounds them to a handful of digits or to 0. Precision 30 keeps 15 integer digits for the weakest
+       * currencies. Portable across PostgreSQL, MySQL and SQLite.
        */
-      table.decimal('exchange_rate', 15, 8).notNullable().comment('The currency exchange rate with should be respect to USD')
+      table.decimal('exchange_rate', 30, 15).notNullable().comment('Units of this currency per 1 base currency')
 
       table.boolean('status').defaultTo(true).comment('The status of the currency')
       table.timestamp('created_at')
