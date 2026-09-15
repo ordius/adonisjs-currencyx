@@ -1,12 +1,8 @@
-import { type CacheOptions, type CacheService } from '@adonisjs/cache/types'
+import { type CacheOptions, type CacheProvider } from '@adonisjs/cache/types'
 import { type ApplicationService, type ConfigProvider } from '@adonisjs/core/types'
 import { type LucidModel } from '@adonisjs/lucid/types/model'
 import type BaseCurrencyService from '@mixxtor/currencyx-js'
-import type {
-  CurrencyExchanges,
-  CurrencyExchangeInstance,
-  createCurrency,
-} from '@mixxtor/currencyx-js'
+import type { CurrencyExchanges, CurrencyExchangeInstance } from '@mixxtor/currencyx-js'
 
 export type { CurrencyExchanges, CurrencyCode } from '@mixxtor/currencyx-js'
 
@@ -70,10 +66,24 @@ export interface DatabaseConfig<
  */
 export interface CacheConfig extends CacheOptions {
   /**
-   * The AdonisJS cache service instance
+   * The AdonisJS cache service, or any cache provider derived from it (`cache.namespace('x')`,
+   * a specific store).
    * @requires @adonisjs/cache
    */
-  service: () => Promise<{ default: CacheService }> | CacheService
+  service: () => Promise<{ default: CacheProvider }> | CacheProvider
+
+  /**
+   * Namespace every cached entry of this exchange lives under — the rate list and the per-pair
+   * lookups — which is what lets `clearCache()` drop all of them at once.
+   * @default 'currency'
+   */
+  prefix?: string
+
+  /**
+   * How long cached rates are served before the table is read again.
+   * @default '1h'
+   */
+  ttl?: number | string
 }
 
 /**
@@ -125,13 +135,20 @@ export interface CurrencyRecord {
 export type ExchangeFactory = CurrencyExchangeInstance
 
 /**
- * Main Currency Service Implementation
+ * The configured exchanges as a type literal, one entry per name with that exchange's own type.
+ *
+ * `CurrencyExchanges` is an interface (augmented from the app's config), and an interface has no
+ * implicit index signature, so it cannot be handed to `CurrencyService<…>` as-is. Mapping it over
+ * its own keys keeps each name's type. The `Record<keyof CurrencyExchanges,
+ * CurrencyExchanges[keyof CurrencyExchanges]>` this replaces gave every name the union of all
+ * exchanges, so `currency.use('database')` could not reach `clearCache()` without a cast.
  */
-export interface CurrencyService extends BaseCurrencyService<
-  CurrencyExchanges extends Record<string, ReturnType<typeof createCurrency>>
-    ? CurrencyExchanges
-    : never
-> {}
+export type ConfiguredExchanges = { [Name in keyof CurrencyExchanges]: CurrencyExchanges[Name] }
+
+/**
+ * The currency manager exported by `services/main`, typed per configured exchange name.
+ */
+export interface CurrencyService extends BaseCurrencyService<ConfiguredExchanges> {}
 
 /**
  * Lazy exchange: a resolver run at config-resolution time with the exchange's own name and the

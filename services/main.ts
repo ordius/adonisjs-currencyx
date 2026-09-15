@@ -8,8 +8,7 @@
  */
 
 import app from '@adonisjs/core/services/app'
-import type CurrencyService from '@mixxtor/currencyx-js'
-import type { CurrencyExchanges } from '../src/types.js'
+import type { CurrencyService } from '../src/types.js'
 
 /**
  * Currency service with full type inference
@@ -27,9 +26,11 @@ import type { CurrencyExchanges } from '../src/types.js'
  * ```
  */
 
-let currency: CurrencyService<
-  Record<keyof CurrencyExchanges, CurrencyExchanges[keyof CurrencyExchanges]>
->
+/**
+ * Typed per exchange name: `currency.use('database')` is the `DatabaseExchange` itself, so its own
+ * methods (`clearCache()`, `refreshCurrencyData()`) are reachable without a cast.
+ */
+let currency: CurrencyService
 
 await app.booted(async () => {
   currency = await app.container.make('currency.manager')

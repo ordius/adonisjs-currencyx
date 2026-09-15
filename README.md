@@ -77,7 +77,7 @@ export default defineConfig({
       // cache: {
       //   service: () => import('@adonisjs/cache/services/main'),
       //   ttl: '1h',          // Cache TTL (human readable or milliseconds)
-      //   keyPrefix: 'currency' // Cache key prefix
+      //   prefix: 'currency' // Cache namespace for this exchange's entries
       // }
     }),
 
@@ -157,7 +157,8 @@ export default class extends BaseSchema {
       table.increments('id')
       table.string('code', 3).notNullable().unique()
       table.string('name').notNullable()
-      table.decimal('exchange_rate', 15, 8).notNullable()
+      // Scale 15: crypto rates (1 USD ≈ 0.0000130 BTC) need it — a narrow scale rounds them away
+      table.decimal('exchange_rate', 30, 15).notNullable()
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })
@@ -304,10 +305,34 @@ database: exchanges.database({
   cache: {
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
     ttl: '1h', // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency', // Cache key prefix
+    prefix: 'currency', // Cache namespace for this exchange's entries
   },
 })
 ```
+
+Everything the exchange caches — the rate list and one entry per currency pair `convert()` /
+`getConvertRate()` looked up — lives under the `prefix` namespace. **Clear it whenever you write
+rates**, or readers keep serving the previous ones for the full `ttl`:
+
+```typescript
+// e.g. at the end of a command/job that syncs rates into the table
+await currency.use('database').clearCache()
+```
+
+`clearCache()` works from any process, including one that has not read rates yet.
+
+### Base currency
+
+Rows are quoted against the exchange's `base` (1 `base` buys `exchange_rate` units of the row's
+currency), so write them in that base — rebase before storing if your provider answers in another
+one. Asking for a different base derives it from the stored rates:
+
+```typescript
+await currency.use('database').latestRates({ base: 'EUR' }) // every rate re-quoted per 1 EUR
+```
+
+A base with no row in the table returns `success: false` with `UNSUPPORTED_CURRENCY`. `decimal`
+columns that the driver returns as strings are read as numbers.
 
 ## 📚 API Reference
 
@@ -420,7 +445,7 @@ database: exchanges.database({
     // Optional caching
     service: () => import('@adonisjs/cache/services/main'), // AdonisJS cache service
     ttl: '1h', // Cache TTL (human readable or milliseconds)
-    keyPrefix: 'currency', // Cache key prefix
+    prefix: 'currency', // Cache namespace for this exchange's entries
   },
 })
 ```
