@@ -1,4 +1,4 @@
-import { type CacheOptions, type CacheService } from '@adonisjs/cache/types'
+import { type CacheOptions, type CacheProvider } from '@adonisjs/cache/types'
 import { type ApplicationService, type ConfigProvider } from '@adonisjs/core/types'
 import { type LucidModel } from '@adonisjs/lucid/types/model'
 import type BaseCurrencyService from '@mixxtor/currencyx-js'
@@ -70,10 +70,24 @@ export interface DatabaseConfig<
  */
 export interface CacheConfig extends CacheOptions {
   /**
-   * The AdonisJS cache service instance
+   * The AdonisJS cache service, or any cache provider derived from it (`cache.namespace('x')`,
+   * a specific store).
    * @requires @adonisjs/cache
    */
-  service: () => Promise<{ default: CacheService }> | CacheService
+  service: () => Promise<{ default: CacheProvider }> | CacheProvider
+
+  /**
+   * Namespace every cached entry of this exchange lives under — the rate list and the per-pair
+   * lookups — which is what lets `clearCache()` drop all of them at once.
+   * @default 'currency'
+   */
+  prefix?: string
+
+  /**
+   * How long cached rates are served before the table is read again.
+   * @default '1h'
+   */
+  ttl?: number | string
 }
 
 /**
